@@ -35,6 +35,15 @@ const fairLaunchId = new anchor.web3.PublicKey(
   process.env.REACT_APP_FAIR_LAUNCH_ID!,
 );
 
+const fairLaunchId2 = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID2!,
+);
+const fairLaunchId3 = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID3!,
+);
+const fairLaunchId4 = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID4!,
+);
 const network = process.env.REACT_APP_SOLANA_NETWORK as WalletAdapterNetwork;
 
 const rpcHost = process.env.REACT_APP_SOLANA_RPC_HOST!;
@@ -61,6 +70,33 @@ const App = () => {
               <Home
                 candyMachineId={candyMachineId}
                 fairLaunchId={fairLaunchId}
+                connection={connection}
+                startDate={startDateSeed}
+                txTimeout={txTimeout}
+              />
+            </ConfettiProvider>
+            <ConfettiProvider>
+              <Home
+                candyMachineId={candyMachineId}
+                fairLaunchId={fairLaunchId2}
+                connection={connection}
+                startDate={startDateSeed}
+                txTimeout={txTimeout}
+              />
+            </ConfettiProvider>
+            <ConfettiProvider>
+              <Home
+                candyMachineId={candyMachineId}
+                fairLaunchId={fairLaunchId3}
+                connection={connection}
+                startDate={startDateSeed}
+                txTimeout={txTimeout}
+              />
+            </ConfettiProvider>
+            <ConfettiProvider>
+              <Home
+                candyMachineId={candyMachineId}
+                fairLaunchId={fairLaunchId4}
                 connection={connection}
                 startDate={startDateSeed}
                 txTimeout={txTimeout}
