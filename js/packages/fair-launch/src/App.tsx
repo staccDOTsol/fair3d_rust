@@ -66,42 +66,64 @@ const App = () => {
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} autoConnect>
           <WalletDialogProvider>
-            <ConfettiProvider>
-              <Home
-                candyMachineId={candyMachineId}
-                fairLaunchId={fairLaunchId}
-                connection={connection}
-                startDate={startDateSeed}
-                txTimeout={txTimeout}
-              />
-            </ConfettiProvider>
-            <ConfettiProvider>
-              <Home
-                candyMachineId={candyMachineId}
-                fairLaunchId={fairLaunchId2}
-                connection={connection}
-                startDate={startDateSeed}
-                txTimeout={txTimeout}
-              />
-            </ConfettiProvider>
-            <ConfettiProvider>
-              <Home
-                candyMachineId={candyMachineId}
-                fairLaunchId={fairLaunchId3}
-                connection={connection}
-                startDate={startDateSeed}
-                txTimeout={txTimeout}
-              />
-            </ConfettiProvider>
-            <ConfettiProvider>
-              <Home
-                candyMachineId={candyMachineId}
-                fairLaunchId={fairLaunchId4}
-                connection={connection}
-                startDate={startDateSeed}
-                txTimeout={txTimeout}
-              />
-            </ConfettiProvider>
+            <div
+              className="container-div"
+              style={{ margin: 0, alignItems: 'center' }}
+            >
+              <div style={{ display: 'inline' }}>
+                <div style={{ textAlign: 'center' }}>Team 1</div>
+                <ConfettiProvider>
+                  <Home
+                    candyMachineId={candyMachineId}
+                    fairLaunchId={fairLaunchId}
+                    connection={connection}
+                    startDate={startDateSeed}
+                    txTimeout={txTimeout}
+                  />
+                </ConfettiProvider>
+              </div>
+              <div style={{ display: 'inline' }}>
+                <div style={{ textAlign: 'center' }}>Team 2</div>
+                <ConfettiProvider>
+                  <Home
+                    candyMachineId={candyMachineId}
+                    fairLaunchId={fairLaunchId2}
+                    connection={connection}
+                    startDate={startDateSeed}
+                    txTimeout={txTimeout}
+                  />
+                </ConfettiProvider>
+              </div>
+            </div>
+            <div
+              className="container-div"
+              style={{ margin: 0, alignItems: 'center' }}
+            >
+              <div style={{ display: 'inline' }}>
+                <div style={{ textAlign: 'center' }}>Team 3</div>
+                <ConfettiProvider>
+                  <Home
+                    candyMachineId={candyMachineId}
+                    fairLaunchId={fairLaunchId3}
+                    connection={connection}
+                    startDate={startDateSeed}
+                    txTimeout={txTimeout}
+                  />
+                </ConfettiProvider>
+              </div>
+              <div style={{ display: 'inline' }}>
+                <div style={{ textAlign: 'center' }}>Team 4</div>
+                <ConfettiProvider>
+                  <Home
+                    candyMachineId={candyMachineId}
+                    fairLaunchId={fairLaunchId4}
+                    connection={connection}
+                    startDate={startDateSeed}
+                    txTimeout={txTimeout}
+                  />
+                </ConfettiProvider>
+              </div>
+            </div>
           </WalletDialogProvider>
         </WalletProvider>
       </ConnectionProvider>

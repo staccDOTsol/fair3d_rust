@@ -49,8 +49,8 @@ import Countdown from 'react-countdown';
 const ConnectButton = styled(WalletDialogButton)`
   width: 100%;
   height: 60px;
-  margin-top: 10px;
-  margin-bottom: 5px;
+  margin-top: 2px;
+  margin-bottom: 1px;
   background: linear-gradient(180deg, #604ae5 0%, #813eee 100%);
   color: white;
   font-size: 16px;
@@ -62,8 +62,8 @@ const MintContainer = styled.div``; // add your styles here
 const MintButton = styled(Button)`
   width: 100%;
   height: 60px;
-  margin-top: 10px;
-  margin-bottom: 5px;
+  margin-top: 2px;
+  margin-bottom: 1px;
   background: linear-gradient(180deg, #604ae5 0%, #813eee 100%);
   color: white;
   font-size: 16px;
@@ -555,28 +555,7 @@ const Home = (props: HomeProps) => {
   );
 
   return (
-    <Container style={{ marginTop: 100 }}>
-      <Container maxWidth="xs" style={{ position: 'relative' }}>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'row',
-            justifyContent: 'flex-end',
-          }}
-        >
-          <Link
-            component="button"
-            variant="body2"
-            color="textSecondary"
-            align="right"
-            onClick={() => {
-              setAnitRugPolicyOpen(true);
-            }}
-          >
-            Anti-Rug Policy
-          </Link>
-        </div>
-      </Container>
+    <Container style={{ marginTop: 0 }}>
       <Container maxWidth="xs" style={{ position: 'relative' }}>
         <Paper
           style={{ padding: 24, backgroundColor: '#151A1F', borderRadius: 6 }}
@@ -591,8 +570,8 @@ const Home = (props: HomeProps) => {
             )}
             {phase === Phase.Phase1 && (
               <Header
-                phaseName={'Phase 1'}
-                desc={'Set price phase'}
+                phaseName={'Bidding'}
+                desc={'Mint #1: Novice'}
                 date={fairLaunch?.state.data.phaseOneEnd}
               />
             )}
@@ -640,53 +619,6 @@ const Home = (props: HomeProps) => {
                 date={candyMachine?.state.goLiveDate}
                 status="LIVE"
               />
-            )}
-
-            {fairLaunch && (
-              <Grid
-                container
-                direction="column"
-                justifyContent="center"
-                alignItems="center"
-                style={{
-                  height: 200,
-                  marginTop: 20,
-                  marginBottom: 20,
-                  background: '#384457',
-                  borderRadius: 6,
-                }}
-              >
-                {fairLaunch.ticket.data ? (
-                  <>
-                    <Typography>Your bid</Typography>
-                    <Typography variant="h6" style={{ fontWeight: 900 }}>
-                      {formatNumber.format(
-                        (fairLaunch?.ticket.data?.amount.toNumber() || 0) /
-                          LAMPORTS_PER_SOL,
-                      )}{' '}
-                      SOL
-                    </Typography>
-                  </>
-                ) : [Phase.Phase0, Phase.Phase1].includes(phase) ? (
-                  <Typography>
-                    You haven't entered this raffle yet. <br />
-                    {fairLaunch?.state?.data?.fee && (
-                      <span>
-                        <b>
-                          All initial bids will incur a ◎{' '}
-                          {fairLaunch?.state?.data?.fee.toNumber() /
-                            LAMPORTS_PER_SOL}{' '}
-                          fee.
-                        </b>
-                      </span>
-                    )}
-                  </Typography>
-                ) : (
-                  <Typography>
-                    You didn't participate in this raffle.
-                  </Typography>
-                )}
-              </Grid>
             )}
 
             {fairLaunch && (
@@ -1050,7 +982,7 @@ const Home = (props: HomeProps) => {
               </MuiDialogTitle>
               <MuiDialogContent>
                 <Typography variant="h6">
-                  Phase 1 - Set the fair price:
+                  Phase 1: Bidding - Set the fair price:
                 </Typography>
                 <Typography gutterBottom color="textSecondary">
                   Enter a bid in the range provided by the artist. The median of
