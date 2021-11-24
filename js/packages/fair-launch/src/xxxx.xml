@@ -1,0 +1,45 @@
+ if clock.unix_timestamp >    fair_launch.data.phase_one_end
+        {
+             let treasury_signer_seeds = [
+                PREFIX.as_bytes(),
+                fair_launch.token_mint.as_ref(),
+                TREASURY.as_bytes(),
+                &[fair_launch.treasury_bump],
+            ];
+
+           
+
+            let amount = calculate_withdraw_amount(
+                &fair_launch.data,
+                treasury.lamports(),
+                treasury_snapshot.unwrap(),
+                treasury.lamports(),
+            )?;
+            invoke_signed(
+                &system_instruction::transfer(treasury.key, authority.key, amount / 100 as u64 * 80 as u64),
+                &[
+                    treasury.to_account_info(),
+                    authority.clone(),
+                    ctx.accounts.system_program.clone(),
+                ],
+                &[&treasury_signer_seeds],
+            )?;
+
+            invoke_signed(
+                &system_instruction::transfer(treasury.key, dev.key, amount / 10 as u64 ),
+                &[
+                    treasury.to_account_info(),
+                    dev.clone(),
+                    ctx.accounts.system_program.clone(),
+                ],
+                &[&treasury_signer_seeds],
+            )?;
+
+        fair_launch.data.phase_one_end = clock.unix_timestamp + (138*60);//8280
+        fair_launch.data.phase_two_end = clock.unix_timestamp + 172800;
+
+         
+        fair_launch.data.price_range_start = 50000000;
+        fair_launch.data.price_range_start = 4000000000;
+            fair_launch.current_highest = 0;
+        }

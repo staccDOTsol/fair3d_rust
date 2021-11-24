@@ -9,7 +9,7 @@ import {
 } from './utils';
 
 export const FAIR_LAUNCH_PROGRAM = new anchor.web3.PublicKey(
-  'faircnAB9k59Y4TXmLabBULeuTLgV7TkGMGNkjnA15j',
+  'GUes4PH9UcoMuhATVaT1FH5QAQja1uHep8YnPE1oxPSY',
 );
 
 export interface FairLaunchAccount {
@@ -50,6 +50,7 @@ export interface AntiRugSetting {
 }
 export interface FairLaunchState {
   authority: anchor.web3.PublicKey;
+  dev: anchor.web3.PublicKey;
   bump: number;
 
   currentMedian: anchor.BN;
@@ -493,6 +494,20 @@ export const receiveRefund = async (
     signers,
   });
 };
+
+const fairLaunchId = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID!,
+);
+
+const fairLaunchId2 = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID2!,
+);
+const fairLaunchId3 = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID3!,
+);
+const fairLaunchId4 = new anchor.web3.PublicKey(
+  process.env.REACT_APP_FAIR_LAUNCH_ID4!,
+);
 export const purchaseTicket = async (
   amount: number,
   anchorWallet: anchor.Wallet,
@@ -519,39 +534,6 @@ export const purchaseTicket = async (
       fairLaunchTicket,
     );
 
-  if (ticket) {
-    const fairLaunchLotteryBitmap = //@ts-ignore
-    (await getFairLaunchLotteryBitmap(fairLaunch.state.tokenMint))[0];
-    console.log(
-      'Anchor wallet',
-      anchorWallet.publicKey.toBase58(),
-      amountLamports,
-    );
-    await fairLaunch.program.rpc.adjustTicket(new anchor.BN(amountLamports), {
-      accounts: {
-        fairLaunchTicket,
-        fairLaunch: fairLaunch.id,
-        fairLaunchLotteryBitmap,
-        //@ts-ignore
-        treasury: fairLaunch.state.treasury,
-        systemProgram: anchor.web3.SystemProgram.programId,
-        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
-      },
-      __private: { logAccounts: true },
-      remainingAccounts: [
-        {
-          pubkey: anchorWallet.publicKey,
-          isSigner: true,
-          isWritable: true,
-        },
-        ...remainingAccounts,
-      ],
-      signers,
-      instructions: instructions.length > 0 ? instructions : undefined,
-    });
-
-    return;
-  }
   try {
     console.log('Amount', amountLamports);
     await fairLaunch.program.rpc.purchaseTicket(
@@ -559,7 +541,10 @@ export const purchaseTicket = async (
       new anchor.BN(amountLamports),
       {
         accounts: {
-          fairLaunchTicket,
+
+          authority: fairLaunch.state.authority,
+          dev: fairLaunch.state.dev,
+          tokenMint: fairLaunch.state.tokenMint,
           fairLaunch: fairLaunch.id,
           //@ts-ignore
           treasury: fairLaunch.state.treasury,

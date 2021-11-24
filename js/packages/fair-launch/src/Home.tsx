@@ -120,6 +120,111 @@ const ValueSlider = styled(Slider)({
   },
 });
 
+const ValueSlider2 = styled(Slider)({
+  color: '#C0D5FE',
+  height: 8,
+  '& > *': {
+    height: 4,
+  },
+  '& .MuiSlider-track': {
+    border: 'none',
+    height: 4,
+  },
+  '& .MuiSlider-thumb': {
+    height: 24,
+    width: 24,
+    marginTop: -10,
+    background: 'linear-gradient(180deg, #604AE5 0%, #813EEE 100%)',
+    border: '2px solid currentColor',
+    '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
+      boxShadow: 'inherit',
+    },
+    '&:before': {
+      display: 'none',
+    },
+  },
+  '& .MuiSlider-valueLabel': {
+    '& > *': {
+      background: 'linear-gradient(180deg, #604AE5 0%, #813EEE 100%)',
+    },
+    lineHeight: 1.2,
+    fontSize: 12,
+    padding: 0,
+    width: 32,
+    height: 32,
+    marginLeft: 9,
+  },
+});
+const ValueSlider3 = styled(Slider)({
+  color: '#C0D5FE',
+  height: 8,
+  '& > *': {
+    height: 4,
+  },
+  '& .MuiSlider-track': {
+    border: 'none',
+    height: 4,
+  },
+  '& .MuiSlider-thumb': {
+    height: 24,
+    width: 24,
+    marginTop: -10,
+    background: 'linear-gradient(180deg, #604AE5 0%, #813EEE 100%)',
+    border: '2px solid currentColor',
+    '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
+      boxShadow: 'inherit',
+    },
+    '&:before': {
+      display: 'none',
+    },
+  },
+  '& .MuiSlider-valueLabel': {
+    '& > *': {
+      background: 'linear-gradient(180deg, #604AE5 0%, #813EEE 100%)',
+    },
+    lineHeight: 1.2,
+    fontSize: 12,
+    padding: 0,
+    width: 32,
+    height: 32,
+    marginLeft: 9,
+  },
+});
+const ValueSlider4 = styled(Slider)({
+  color: '#C0D5FE',
+  height: 8,
+  '& > *': {
+    height: 4,
+  },
+  '& .MuiSlider-track': {
+    border: 'none',
+    height: 4,
+  },
+  '& .MuiSlider-thumb': {
+    height: 24,
+    width: 24,
+    marginTop: -10,
+    background: 'linear-gradient(180deg, #604AE5 0%, #813EEE 100%)',
+    border: '2px solid currentColor',
+    '&:focus, &:hover, &.Mui-active, &.Mui-focusVisible': {
+      boxShadow: 'inherit',
+    },
+    '&:before': {
+      display: 'none',
+    },
+  },
+  '& .MuiSlider-valueLabel': {
+    '& > *': {
+      background: 'linear-gradient(180deg, #604AE5 0%, #813EEE 100%)',
+    },
+    lineHeight: 1.2,
+    fontSize: 12,
+    padding: 0,
+    width: 32,
+    height: 32,
+    marginLeft: 9,
+  },
+});
 enum Phase {
   Phase0,
   Phase1,
@@ -164,30 +269,13 @@ function getPhase(
 ): Phase {
   const curr = new Date().getTime();
 
-  const phaseOne = toDate(fairLaunch?.state.data.phaseOneStart)?.getTime();
-  const phaseOneEnd = toDate(fairLaunch?.state.data.phaseOneEnd)?.getTime();
+    const phaseOne = toDate(fairLaunch?.state.data.phaseOneStart)?.getTime();
+    const phaseOneEnd = toDate(fairLaunch?.state.data.phaseOneEnd)?.getTime();
   const phaseTwoEnd = toDate(fairLaunch?.state.data.phaseTwoEnd)?.getTime();
   const candyMachineGoLive = toDate(candyMachine?.state.goLiveDate)?.getTime();
 
-  if (phaseOne && curr < phaseOne) {
-    return Phase.Phase0;
-  } else if (phaseOneEnd && curr <= phaseOneEnd) {
-    return Phase.Phase1;
-  } else if (phaseTwoEnd && curr <= phaseTwoEnd) {
-    return Phase.Phase2;
-  } else if (!fairLaunch?.state.phaseThreeStarted) {
-    return Phase.Lottery;
-  } else if (
-    fairLaunch?.state.phaseThreeStarted &&
-    candyMachineGoLive &&
-    curr > candyMachineGoLive
-  ) {
-    return Phase.Phase4;
-  } else if (fairLaunch?.state.phaseThreeStarted) {
-    return Phase.Phase3;
-  }
 
-  return Phase.Unknown;
+  return Phase.Phase1;
 }
 
 export interface HomeProps {
@@ -236,6 +324,9 @@ const Home = (props: HomeProps) => {
 
   const [isMinting, setIsMinting] = useState(false); // true when user got to press MINT
   const [contributed, setContributed] = useState(0);
+const [contributed2, setContributed2] = useState(0);
+const [contributed3, setContributed3] = useState(0);
+const [contributed4, setContributed4] = useState(0);
 
   const wallet = useWallet();
 
@@ -374,11 +465,7 @@ const Home = (props: HomeProps) => {
           console.log('Problem getting fair launch token balance');
           console.log(e);
         }
-        setContributed(
-          (
-            state.state.currentMedian || state.state.data.priceRangeStart
-          ).toNumber() / LAMPORTS_PER_SOL,
-        );
+
       } catch (e) {
         console.log('Problem getting fair launch state');
         console.log(e);
@@ -405,20 +492,27 @@ const Home = (props: HomeProps) => {
     props.connection,
     props.fairLaunchId,
   ]);
-
+const phaseOneEnd =  toDate(fairLaunch?.state.data.phaseOneEnd)?.getTime();
   const min = formatNumber.asNumber(fairLaunch?.state.data.priceRangeStart);
+  const fee = formatNumber.asNumber(fairLaunch?.state.data.fee);
   const max = formatNumber.asNumber(fairLaunch?.state.data.priceRangeEnd);
   const step = formatNumber.asNumber(fairLaunch?.state.data.tickSize);
   const median = formatNumber.asNumber(fairLaunch?.state.currentMedian);
+let highest
+// @ts-ignore
+  if (fairLaunch?.state.currentHighest != undefined){
+// @ts-ignore
+highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
+  }
+  else {
+    highest = 1000000000
+  } 
   const marks = [
-    {
-      value: min || 0,
-      label: `${min} SOL`,
-    },
+   
     // TODO:L
     {
-      value: median || 0,
-      label: `${median}`,
+      value: min || 0,
+      label:  `${min} SOL`,
     },
     // display user comitted value
     // {
@@ -435,11 +529,21 @@ const Home = (props: HomeProps) => {
     if (!anchorWallet) {
       return;
     }
-
     console.log('deposit');
     setIsMinting(true);
     try {
+
+    
+      if (
+  // @ts-ignore
+        new Date().getTime() < phaseOneEnd){
+
       await purchaseTicket(contributed, anchorWallet, fairLaunch);
+    }
+    else {
+            await purchaseTicket(0, anchorWallet, fairLaunch);
+
+    }
       setIsMinting(false);
       setAlertState({
         open: true,
@@ -485,30 +589,7 @@ const Home = (props: HomeProps) => {
     }
   };
   const onRefundTicket = async () => {
-    if (!anchorWallet) {
-      return;
-    }
 
-    console.log('refund');
-    try {
-      setIsMinting(true);
-      await purchaseTicket(0, anchorWallet, fairLaunch);
-      setIsMinting(false);
-      setAlertState({
-        open: true,
-        message:
-          'Congratulations! Funds withdrawn. This is an irreversible action.',
-        severity: 'success',
-      });
-    } catch (e) {
-      console.log(e);
-      setIsMinting(false);
-      setAlertState({
-        open: true,
-        message: 'Something went wrong.',
-        severity: 'error',
-      });
-    }
   };
 
   const onPunchTicket = async () => {
@@ -544,18 +625,11 @@ const Home = (props: HomeProps) => {
     fairLaunch?.state.data.phaseTwoEnd &&
     candyMachine?.state.goLiveDate.lt(fairLaunch?.state.data.phaseTwoEnd);
 
-  const notEnoughSOL = !!(
-    yourSOLBalance != null &&
-    fairLaunch?.state.data.priceRangeStart &&
-    fairLaunch?.state.data.fee &&
-    yourSOLBalance + (fairLaunch?.ticket?.data?.amount.toNumber() || 0) <
-      contributed * LAMPORTS_PER_SOL +
-        fairLaunch?.state.data.fee.toNumber() +
-        0.01
-  );
+  const notEnoughSOL = false;
 
   return (
     <Container style={{ marginTop: 0 }}>
+    <div>Hi we're on devnet :) Any soul to send stacc.sol 5 SOLs so I can pooblish mainnet gets their share of 50% of dev revenues. Offer stands for UI and marketing collabs, too :) {fee} SOL flat per bid and 10% of the bid.</div>
       <Container maxWidth="xs" style={{ position: 'relative' }}>
         <Paper
           style={{ padding: 24, backgroundColor: '#151A1F', borderRadius: 6 }}
@@ -569,17 +643,37 @@ const Home = (props: HomeProps) => {
               />
             )}
             {phase === Phase.Phase1 && (
+              <div>
               <Header
-                phaseName={'Bidding'}
-                desc={'Mint #1: Novice'}
+                phaseName={'This is NOT FLP!'}
+                desc={'Btw you need to move your slider to bid. You may lose all your $. Risk only what you can afford to lose.'}
                 date={fairLaunch?.state.data.phaseOneEnd}
               />
+
+              <Typography variant="h5" style={{ fontWeight: 900 }}>
+                    
+                    {fairLaunch?.state.authority.toBase58().slice(0, 3) +
+                      '...' +
+                      fairLaunch?.state.authority
+                        .toBase58()
+                        .slice(
+                          fairLaunch?.state.authority.toBase58().length - 3,
+                          fairLaunch?.state.authority.toBase58().length,
+                        )}{' '}
+                    is Going to Win 1st Prize of ◎{''}
+
+                    { // @ts-ignore
+                      formatNumber.format(fairLaunch?.treasury / LAMPORTS_PER_SOL)}! If nobody outbids 'em _soon_ 
+                     { // @ts-ignore
+                      formatNumber.format(fairLaunch?.current_highest / LAMPORTS_PER_SOL)}! This be the current winning bid.
+                  </Typography>
+                  </div>  
             )}
 
             {phase === Phase.Phase2 && (
               <Header
-                phaseName={'Phase 2'}
-                desc={'Grace period'}
+                phaseName={'Hey press the mint $'}
+                desc={'It\'ll pay the winner, you pay sol fees, then restart this game:)'}
                 date={fairLaunch?.state.data.phaseTwoEnd}
               />
             )}
@@ -702,7 +796,7 @@ const Home = (props: HomeProps) => {
                 Connect{' '}
                 {[Phase.Phase1].includes(phase) ? 'to bid' : 'to see status'}
               </ConnectButton>
-            ) : (
+            ) : ( 
               <div>
                 {[Phase.Phase1, Phase.Phase2].includes(phase) && (
                   <>
@@ -710,9 +804,7 @@ const Home = (props: HomeProps) => {
                       onClick={onDeposit}
                       variant="contained"
                       disabled={
-                        isMinting ||
-                        (!fairLaunch?.ticket.data && phase === Phase.Phase2) ||
-                        notEnoughSOL
+                        false 
                       }
                     >
                       {isMinting ? (
@@ -720,12 +812,13 @@ const Home = (props: HomeProps) => {
                       ) : !fairLaunch?.ticket.data ? (
                         'Place bid'
                       ) : (
-                        'Change bid'
+                        'New Bids != adjusting.'
                       )}
                       {}
                     </MintButton>
                   </>
                 )}
+                 
 
                 {[Phase.Phase3].includes(phase) && (
                   <>
@@ -819,29 +912,9 @@ const Home = (props: HomeProps) => {
                   setHowToOpen(true);
                 }}
               >
-                How this raffle works
+                Wat is this
               </Link>
-              {fairLaunch?.ticket.data && (
-                <Link
-                  component="button"
-                  variant="body2"
-                  color="textSecondary"
-                  align="right"
-                  onClick={() => {
-                    if (
-                      !fairLaunch ||
-                      phase === Phase.Lottery ||
-                      isWinner(fairLaunch, fairLaunchBalance)
-                    ) {
-                      setRefundExplainerOpen(true);
-                    } else {
-                      onRefundTicket();
-                    }
-                  }}
-                >
-                  Withdraw funds
-                </Link>
-              )}
+
             </Grid>
             <Dialog
               open={refundExplainerOpen}
@@ -982,69 +1055,22 @@ const Home = (props: HomeProps) => {
               </MuiDialogTitle>
               <MuiDialogContent>
                 <Typography variant="h6">
-                  Phase 1: Bidding - Set the fair price:
+                  There is one phase.
                 </Typography>
                 <Typography gutterBottom color="textSecondary">
-                  Enter a bid in the range provided by the artist. The median of
-                  all bids will be the "fair" price of the raffle ticket.{' '}
-                  {fairLaunch?.state?.data?.fee && (
-                    <span>
-                      <b>
-                        All bids will incur a ◎{' '}
-                        {fairLaunch?.state?.data?.fee.toNumber() /
-                          LAMPORTS_PER_SOL}{' '}
-                        fee.
-                      </b>
-                    </span>
-                  )}
+                  You contribute. When you do for a particular game the ranges increase and the entry into all games is reduced a bit.
                 </Typography>
-                <Typography variant="h6">Phase 2 - Grace period:</Typography>
+                <Typography variant="h6">Phase 2 - Not Really</Typography>
                 <Typography gutterBottom color="textSecondary">
-                  If your bid was at or above the fair price, you automatically
-                  get a raffle ticket at that price. There's nothing else you
-                  need to do. Your excess SOL will be returned to you when the
-                  Fair Launch authority withdraws from the treasury. If your bid
-                  is below the median price, you can still opt in at the fair
-                  price during this phase.
+                 Anyone can press the magic button, release winnings to our lucky frien, 10% stays behind to seed the next game tho.
                 </Typography>
-                {candyMachinePredatesFairLaunch ? (
-                  <>
-                    <Typography variant="h6">
-                      Phase 3 - The Candy Machine:
-                    </Typography>
-                    <Typography gutterBottom color="textSecondary">
-                      Everyone who got a raffle ticket at the fair price is
-                      entered to win an NFT. If you win an NFT, congrats. If you
-                      don’t, no worries, your SOL will go right back into your
-                      wallet.
-                    </Typography>
-                  </>
-                ) : (
-                  <>
-                    <Typography variant="h6">Phase 3 - The Lottery:</Typography>
-                    <Typography gutterBottom color="textSecondary">
-                      Everyone who got a raffle ticket at the fair price is
-                      entered to win a Fair Launch Token that entitles them to
-                      an NFT at a later date using a Candy Machine here. If you
-                      don’t win, no worries, your SOL will go right back into
-                      your wallet.
-                    </Typography>
-                    <Typography variant="h6">
-                      Phase 4 - The Candy Machine:
-                    </Typography>
-                    <Typography gutterBottom color="textSecondary">
-                      On{' '}
-                      {candyMachine?.state.goLiveDate
-                        ? toDate(
-                            candyMachine?.state.goLiveDate,
-                          )?.toLocaleString()
-                        : ' some later date'}
-                      , you will be able to exchange your Fair Launch token for
-                      an NFT using the Candy Machine at this site by pressing
-                      the Mint Button.
-                    </Typography>
-                  </>
-                )}
+ <Typography variant="h6">Btw</Typography>
+                <Typography gutterBottom color="textSecondary">
+                Any bid of any amount will let you win, if nobody bids before the timer runs out. Glhf.
+                </Typography>
+                  <Typography gutterBottom color="textSecondary">
+                Nothng I should ever do or say is not financial advice of any kind, I'm not qualified. 
+                </Typography>
               </MuiDialogContent>
             </Dialog>
 
