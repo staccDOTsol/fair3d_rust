@@ -23,6 +23,14 @@ export const ArtworksView = () => {
   const ownedMetadata = useUserArts();
   const createdMetadata = useCreatorArts(publicKey?.toBase58() || '');
   const { metadata, isLoading, pullAllMetadata, storeIndexer } = useMeta();
+  let mints = []
+  for (var m in metadata){
+    console.log(metadata[m].name)
+    // @ts-ignore
+    mints.push(metadata[m].info.mint)
+  }
+  console.log(mints)
+  console.log(mints.length  )
   const [activeKey, setActiveKey] = useState(ArtworkViewState.Metaplex);
   const breakpointColumnsObj = {
     default: 4,

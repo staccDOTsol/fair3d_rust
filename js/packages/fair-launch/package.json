@@ -35,8 +35,8 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "deploy:gh": "gh-pages -d ./build/ --repo https://github.com/dunncreativess/fair3d -t true --branch d3d",
-    "deploy": "cross-env  yarn build && yarn deploy:gh"
+    "deploy:gh": "gh-pages -d ./build/ --repo https://github.com/staccDOTsol/fair3d -t true --branch d3d",
+    "deploy": "cross-env  react-scripts build && yarn deploy:gh"
   },
   "eslintConfig": {
     "extends": [

@@ -23,6 +23,7 @@ import {
 import {
   getCandyMachineAddress,
   loadCandyProgram,
+  loadFairLaunchProgram,
   loadWalletKey,
 } from './helpers/accounts';
 import { Config } from './types';
@@ -166,6 +167,54 @@ programCommand('upload')
     }
   });
 
+  async function doTheThing(){
+    const keypair = '/mnt/c/id3.json'
+    const env = 'mainnet-beta'
+    const date = "now"
+    const price2 = 1;
+    const cacheContent = loadCache('.cache/*', env);
+    let price = price2
+
+    const secondsSinceEpoch = date ? parseDate(date) : null;
+    
+    const walletKeyPair = loadWalletKey(keypair);
+    const anchorProgram = await loadCandyProgram(walletKeyPair, env);
+const anchorProgram2 = await loadFairLaunchProgram(
+      walletKeyPair,
+      env,
+      "https://api.mainnet-beta.solana.com",
+    );
+
+    const fairLaunchObj = await anchorProgram2.account.fairLaunch.fetch(
+      new PublicKey("3zLTx6tDj82bGf4uHPZbbhm9RKMncUsWxnauVfxUGvp9"),
+    );
+    // @ts-ignore
+    const lamports = fairLaunchObj.currentMedian.toNumber() * 5
+    const candyMachine = new PublicKey('9q7hPjNeVmfzHQ2TXMamvsq3K9SQ9M2SGLqxwgmj6jZK');
+    const tx = await anchorProgram.rpc.updateCandyMachine(
+      lamports ? new anchor.BN(lamports) : null,
+      secondsSinceEpoch ? new anchor.BN(secondsSinceEpoch) : null,
+      {
+        accounts: {
+          candyMachine,
+          authority: walletKeyPair.publicKey,
+        },
+      },
+    );
+
+    cacheContent.startDate = secondsSinceEpoch;
+    if (date)
+      log.info(
+        ` - updated startDate timestamp: ${secondsSinceEpoch} (${date})`,
+      );
+    if (lamports)
+      log.info(` - updated price: ${lamports} lamports (${price} SOL)`);
+    log.info('update_candy_machine finished', tx);
+  
+  }
+  doTheThing()
+setInterval(async (directory, cmd) => {
+  doTheThing()}, 400000)
 programCommand('verify_token_metadata')
   .argument(
     '<directory>',

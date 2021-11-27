@@ -63,6 +63,7 @@ const App = () => {
 
   return (
     <ThemeProvider theme={theme}>
+    <div>whoever contributes any contribution in the range last wins. the timer resets anyone contributes, and the range mins and maxes increase. These all reset back to og. values when a game is won.</div>
       <ConnectionProvider endpoint={endpoint}>
         <WalletProvider wallets={wallets} autoConnect>
           <WalletDialogProvider>

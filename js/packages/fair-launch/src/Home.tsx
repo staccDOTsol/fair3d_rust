@@ -234,7 +234,6 @@ enum Phase {
   Phase4,
   Unknown,
 }
-
 const Header = (props: {
   phaseName: string;
   desc: string;
@@ -318,6 +317,7 @@ const isWinner = (
   return isWinner > 0;
 };
 
+let first = true;
 const Home = (props: HomeProps) => {
   const [fairLaunchBalance, setFairLaunchBalance] = useState<number>(0);
   const [yourSOLBalance, setYourSOLBalance] = useState<number | null>(null);
@@ -358,7 +358,12 @@ const [contributed4, setContributed4] = useState(0);
   const [howToOpen, setHowToOpen] = useState(false);
   const [refundExplainerOpen, setRefundExplainerOpen] = useState(false);
   const [antiRugPolicyOpen, setAnitRugPolicyOpen] = useState(false);
-
+  setTimeout(async function(){
+    if (first){
+      first = false;
+      setHowToOpen(true);
+    }
+  }, 2000)
   const onMint = async () => {
     try {
       setIsMinting(true);
@@ -547,7 +552,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
       setIsMinting(false);
       setAlertState({
         open: true,
-        message: `Congratulations! Bid ${
+        message: `Congratulations! contribution ${
           fairLaunch?.ticket.data ? 'updated' : 'inserted'
         }!`,
         severity: 'success',
@@ -629,7 +634,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
 
   return (
     <Container style={{ marginTop: 0 }}>
-    <div>Hi we're on devnet :) Any soul to send stacc.sol 5 SOLs so I can pooblish mainnet gets their share of 50% of dev revenues. Offer stands for UI and marketing collabs, too :) {fee} SOL flat per bid and 10% of the bid.</div>
+    <div>{fee} SOL flat per contribution and 10% of the contribution.</div>
       <Container maxWidth="xs" style={{ position: 'relative' }}>
         <Paper
           style={{ padding: 24, backgroundColor: '#151A1F', borderRadius: 6 }}
@@ -646,7 +651,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
               <div>
               <Header
                 phaseName={'This is NOT FLP!'}
-                desc={'Btw you need to move your slider to bid. You may lose all your $. Risk only what you can afford to lose.'}
+                desc={'This is NOT a #FairLaunchProtocol. Anything you contribute goes to the winner, back into the game to seed the next games, dev.'}
                 date={fairLaunch?.state.data.phaseOneEnd}
               />
 
@@ -663,9 +668,11 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                     is Going to Win 1st Prize of ◎{''}
 
                     { // @ts-ignore
-                      formatNumber.format(fairLaunch?.treasury / LAMPORTS_PER_SOL)}! If nobody outbids 'em _soon_ 
+                      formatNumber.format((fairLaunch?.treasury * 0.8) / LAMPORTS_PER_SOL)}! If nobody outcontributions 'em _soon_ 
                      { // @ts-ignore
-                      formatNumber.format(fairLaunch?.current_highest / LAMPORTS_PER_SOL)}! This be the current winning bid.
+                      formatNumber.format((fairLaunch?.treasury * 0.2) / LAMPORTS_PER_SOL)}! will be kept in the game, for future rounds...
+                  <br />
+                  dev share is distributed among tokenholders. You may lose all your $. Risk only what you can afford to lose.
                   </Typography>
                   </div>  
             )}
@@ -726,7 +733,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                   fairLaunch?.ticket?.data?.state.withdrawn && (
                     <div style={{ paddingTop: '15px' }}>
                       <Alert severity="error">
-                        Your bid was withdrawn and cannot be adjusted or
+                        Your contribution was withdrawn and cannot be adjusted or
                         re-inserted.
                       </Alert>
                     </div>
@@ -740,7 +747,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                   ) && (
                     <div style={{ paddingTop: '15px' }}>
                       <Alert severity="warning">
-                        Your bid is currently below the median and will not be
+                        Your contribution is currently below the median and will not be
                         eligible for the raffle.
                       </Alert>
                     </div>
@@ -754,7 +761,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                   ) && (
                     <div style={{ paddingTop: '15px' }}>
                       <Alert severity="error">
-                        Your bid was below the median and was not included in
+                        Your contribution was below the median and was not included in
                         the raffle. You may click <em>Withdraw</em> when the
                         raffle ends or you will be automatically issued one when
                         the Fair Launch authority withdraws from the treasury.
@@ -764,7 +771,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                 {notEnoughSOL && (
                   <Alert severity="error">
                     You do not have enough SOL in your account to place this
-                    bid.
+                    contribution.
                   </Alert>
                 )}
               </>
@@ -794,7 +801,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
             {!wallet.connected ? (
               <ConnectButton>
                 Connect{' '}
-                {[Phase.Phase1].includes(phase) ? 'to bid' : 'to see status'}
+                {[Phase.Phase1].includes(phase) ? 'to contribution' : 'to see status'}
               </ConnectButton>
             ) : ( 
               <div>
@@ -810,9 +817,9 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                       {isMinting ? (
                         <CircularProgress />
                       ) : !fairLaunch?.ticket.data ? (
-                        'Place bid'
+                        'Place contribution'
                       ) : (
-                        'New Bids != adjusting.'
+                        'New contributions != adjusting.'
                       )}
                       {}
                     </MintButton>
@@ -1054,6 +1061,12 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                 </IconButton>
               </MuiDialogTitle>
               <MuiDialogContent>
+
+  <Typography variant="h4">
+                  TL;DR: Any contribution of any amount will let you win, if nobody contributions before the timer runs out. Glhf.
+                </Typography>
+                
+
                 <Typography variant="h6">
                   There is one phase.
                 </Typography>
@@ -1066,7 +1079,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
                 </Typography>
  <Typography variant="h6">Btw</Typography>
                 <Typography gutterBottom color="textSecondary">
-                Any bid of any amount will let you win, if nobody bids before the timer runs out. Glhf.
+                Any contribution of any amount will let you win, if nobody contributions before the timer runs out. Glhf.
                 </Typography>
                   <Typography gutterBottom color="textSecondary">
                 Nothng I should ever do or say is not financial advice of any kind, I'm not qualified. 
@@ -1096,7 +1109,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
             <Grid container direction="row" wrap="nowrap">
               <Grid container md={4} direction="column">
                 <Typography variant="body2" color="textSecondary">
-                  Bids
+                  contributions
                 </Typography>
                 <Typography
                   variant="h6"
@@ -1108,7 +1121,7 @@ highest = formatNumber.asNumber(fairLaunch?.state.currentHighest);
               </Grid>
               <Grid container md={4} direction="column">
                 <Typography variant="body2" color="textSecondary">
-                  Median bid
+                  Median contribution
                 </Typography>
                 <Typography
                   variant="h6"
