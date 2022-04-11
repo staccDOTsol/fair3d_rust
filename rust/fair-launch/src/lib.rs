@@ -31,7 +31,7 @@ pub const LOTTERY: &str = "lottery";
 pub const PARTICIPATION: &str = "participation";
 pub const ACCOUNT: &str = "account";
 pub const MAX_GRANULARITY: u64 = 100;
-//declare_id!("faircnAB9k59Y4TXmLabBULeuTLgV7TkGMGNkjnA15j");
+!declare_id!("GUes4PH9UcoMuhATVaT1FH5QAQja1uHep8YnPE1oxPSY");
 
 #[program]
 pub mod fair_launch {

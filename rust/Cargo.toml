@@ -1,6 +1,6 @@
 [workspace]
 members = [
-  "not-so-fair-launch",
+  "fair-launch",
 ]
 exclude = [
 ]
