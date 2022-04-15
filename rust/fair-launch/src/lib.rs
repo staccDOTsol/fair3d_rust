@@ -2,8 +2,8 @@ pub mod utils;
 
 use {
     crate::utils::{
-        adjust_counts, assert_data_valid, assert_derivation, assert_initialized, assert_owned_by,
-        assert_valid_amount, calculate_withdraw_amount,
+        assert_data_valid, assert_derivation, assert_initialized, assert_owned_by,
+         calculate_withdraw_amount,
         create_or_allocate_account_raw, 
         spl_token_transfer, TokenTransferParams,
     },
@@ -11,7 +11,6 @@ use {
         prelude::*,
         solana_program::{
             program::{invoke, invoke_signed},
-            program_option::COption,
             program_pack::Pack,
             system_instruction, system_program,
         },
@@ -31,7 +30,6 @@ pub const LOTTERY: &str = "lottery";
 pub const PARTICIPATION: &str = "participation";
 pub const ACCOUNT: &str = "account";
 pub const MAX_GRANULARITY: u64 = 100;
-!declare_id!("GUes4PH9UcoMuhATVaT1FH5QAQja1uHep8YnPE1oxPSY");
 
 #[program]
 pub mod fair_launch {
@@ -48,6 +46,7 @@ pub mod fair_launch {
         assert_data_valid(&data)?;
         fair_launch.data = data;
         fair_launch.data.last =  0;
+
         fair_launch.authority = *ctx.accounts.authority.key;
         fair_launch.bump = bump;
         fair_launch.treasury_bump = treasury_bump;
@@ -129,19 +128,10 @@ pub mod fair_launch {
                 &[signer_seeds],
             )?;
         }
-
-        // now we do the counts.
-        let mut counts_at_each_tick: Vec<u64> = vec![];
-        let mut start = fair_launch.data.price_range_start;
-        while start <= fair_launch.data.price_range_end {
-            counts_at_each_tick.push(0);
-            start = start
-                .checked_add(fair_launch.data.tick_size)
-                .ok_or(ErrorCode::NumericalOverflowError)?;
-        }
-
-        fair_launch.counts_at_each_tick = counts_at_each_tick;
-
+        fair_launch.data.phase_one_end = fair_launch.data.phase_one_end.checked_add(fair_launch.data.lottery_duration
+            .checked_mul(6)
+            .ok_or(ErrorCode::NumericalOverflowError)?).ok_or(ErrorCode::NumericalOverflowError)?;
+        
         Ok(())
     }
 
@@ -149,105 +139,27 @@ pub mod fair_launch {
     pub fn purchase_ticket<'info>(
         ctx: Context<'_, '_, '_, 'info, PurchaseTicket<'info>>,
         bump: u8,
+
         amount: u64,
     ) -> ProgramResult {
         let fair_launch = &mut ctx.accounts.fair_launch;
-        let fair_launch_ticket = &mut ctx.accounts.fair_launch_ticket;
         let buyer = &ctx.accounts.buyer;
         let clock = &ctx.accounts.clock;
 
-        if clock.unix_timestamp < fair_launch.data.phase_one_start
-            || clock.unix_timestamp > fair_launch.data.phase_one_end
+        if clock.unix_timestamp > fair_launch.data.phase_one_end
         {
             return Err(ErrorCode::CannotBuyTicketsOutsidePhaseOne.into());
         }
 
-        assert_valid_amount(&fair_launch, amount)?;
-
-        fair_launch_ticket.fair_launch = fair_launch.key();
-        fair_launch_ticket.buyer = *buyer.key;
-        fair_launch_ticket.amount = amount;
-        fair_launch_ticket.state = FairLaunchTicketState::NoSequenceStruct; // Be verbose even though it's 0
-        fair_launch_ticket.bump = bump;
-        fair_launch_ticket.seq = fair_launch.number_tickets_sold;
 
         fair_launch.number_tickets_sold = fair_launch
             .number_tickets_sold
             .checked_add(1)
             .ok_or(ErrorCode::NumericalOverflowError)?;
 
-        fair_launch.number_tickets_un_seqed = fair_launch
-            .number_tickets_un_seqed
-            .checked_add(1)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
+        
+        let charged_amount = amount;
 
-        adjust_counts(fair_launch, amount, None)?;
-
-        let charged_amount = amount
-            .checked_add(fair_launch.data.fee)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-
-        if let Some(treasury_mint) = fair_launch.treasury_mint {
-            let treasury_mint_info = &ctx.remaining_accounts[0];
-            let _treasury_mint: spl_token::state::Mint = assert_initialized(&treasury_mint_info)?;
-
-            let buyer_token_account_info = &ctx.remaining_accounts[1];
-            let buyer_token_account: Account = assert_initialized(&buyer_token_account_info)?;
-
-            let transfer_authority_info = &ctx.remaining_accounts[2];
-
-            let token_program = &ctx.remaining_accounts[3];
-
-            if token_program.key != &spl_token::id() {
-                return Err(ErrorCode::InvalidTokenProgram.into());
-            }
-
-            if *treasury_mint_info.key != treasury_mint {
-                return Err(ErrorCode::TreasuryMintMismatch.into());
-            }
-
-            if buyer_token_account.mint != *treasury_mint_info.key {
-                return Err(ErrorCode::TreasuryMintMismatch.into());
-            }
-
-            if let COption::Some(val) = buyer_token_account.delegate {
-                if val != *transfer_authority_info.key {
-                    return Err(ErrorCode::AccountShouldHaveNoDelegates.into());
-                }
-            }
-
-            if buyer_token_account.owner != *buyer.key {
-                return Err(ErrorCode::AccountOwnerShouldBeBuyer.into());
-            }
-
-            assert_owned_by(treasury_mint_info, &token_program.key)?;
-            assert_owned_by(buyer_token_account_info, &token_program.key)?;
-
-            // assert is an ATA
-            assert_derivation(
-                &spl_associated_token_account::id(),
-                buyer_token_account_info,
-                &[
-                    buyer.key.as_ref(),
-                    token_program.key.as_ref(),
-                    &treasury_mint_info.key.as_ref(),
-                ],
-            )?;
-
-            if buyer_token_account.amount < charged_amount {
-                return Err(ErrorCode::NotEnoughTokens.into());
-            }
-            msg!("b4 {}", buyer_token_account_info.key);
-            spl_token_transfer(TokenTransferParams {
-                source: buyer_token_account_info.clone(),
-                destination: ctx.accounts.treasury.clone(),
-                authority: transfer_authority_info.clone(),
-                authority_signer_seeds: &[],
-                token_program: token_program.clone(),
-                amount: charged_amount,
-            })?;
-            msg!("aft");
-        } else {
             if buyer.lamports() < charged_amount {
                 return Err(ErrorCode::NotEnoughSOL.into());
             }
@@ -263,9 +175,11 @@ pub mod fair_launch {
                     ctx.accounts.system_program.clone(),
                 ],
             )?;
-        }
+        
 
-        fair_launch.data.phase_one_end = clock.unix_timestamp + fair_launch.data.lottery_duration;
+        if fair_launch.data.phase_one_end.checked_sub(clock.unix_timestamp).ok_or(ErrorCode::NumericalOverflowError)? < fair_launch.data.lottery_duration{
+            fair_launch.data.phase_one_end = clock.unix_timestamp.checked_add(fair_launch.data.lottery_duration).ok_or(ErrorCode::NumericalOverflowError)?;
+        }
         fair_launch.authority = *ctx.accounts.buyer.key;
         Ok(())
     }
@@ -277,9 +191,9 @@ pub mod fair_launch {
         let treasury = &mut ctx.accounts.treasury;
         let authority = &mut ctx.accounts.authority;
         let token_mint = &ctx.accounts.token_mint;
+        let clock = &ctx.accounts.clock;
 
-
-        if fair_launch.data.phase_one_end >= 0 {
+        if fair_launch.data.phase_one_end.checked_sub(clock.unix_timestamp).ok_or(ErrorCode::NumericalOverflowError)? >= 1 {
             return Err(ErrorCode::CannotCashOutUntilPhaseThree.into());
         }
 
@@ -476,8 +390,7 @@ pub struct UpdateFairLaunchLotteryBitmap<'info> {
 #[derive(Accounts)]
 #[instruction(bump: u8, amount: u64)]
 pub struct PurchaseTicket<'info> {
-    #[account(init, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), buyer.key.as_ref()],  payer=payer, bump=bump, space=FAIR_LAUNCH_TICKET_SIZE)]
-    fair_launch_ticket: ProgramAccount<'info, FairLaunchTicket>,
+
     #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=treasury)]
     fair_launch: ProgramAccount<'info, FairLaunch>,
     #[account(mut)]
@@ -497,71 +410,13 @@ pub struct PurchaseTicket<'info> {
     // [optional] token program
 }
 
-// permissionless, anybody can make this if for some reason the UI messes up.
-#[derive(Accounts)]
-#[instruction(bump: u8)]
-pub struct CreateTicketSeq<'info> {
-    #[account(init, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), &fair_launch_ticket.seq.to_le_bytes()],  payer=payer, bump=bump, space=FAIR_LAUNCH_TICKET_SEQ_SIZE)]
-    fair_launch_ticket_seq_lookup: ProgramAccount<'info, FairLaunchTicketSeqLookup>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), fair_launch_ticket.buyer.as_ref()], bump=fair_launch_ticket.bump, has_one=fair_launch)]
-    fair_launch_ticket: ProgramAccount<'info, FairLaunchTicket>,
-    #[account(mut, signer)]
-    payer: AccountInfo<'info>,
-    #[account(address = system_program::ID)]
-    system_program: AccountInfo<'info>,
-    rent: Sysvar<'info, Rent>,
-}
-
-/// IN phase 1, you can adjust up or down in any way
-/// In phase 2, you can adjust up or down in any way
-/// In phase 3, if you are above the decided_median, you can only adjust down to decided median. If below, you can only
-/// adjust down, never up.
-#[derive(Accounts)]
-pub struct AdjustTicket<'info> {
-    #[account(mut)]
-    fair_launch_ticket: ProgramAccount<'info, FairLaunchTicket>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    fair_launch_lottery_bitmap: AccountInfo<'info>,
-    #[account(mut)]
-    treasury: AccountInfo<'info>,
-    #[account(address = system_program::ID)]
-    system_program: AccountInfo<'info>,
-    clock: Sysvar<'info, Clock>,
-    // Remaining REQUIRED account put in remaining due to anchor cli bug:
-    // [writable/signer ONLY in phase 1/2] buyer
-    // Remaining accounts in this order if using spl tokens for payment:
-    // [Writable/optional] treasury mint
-    // [Writable/optional] buyer token account (must be ata)
-    // [optional] transfer authority to transfer amount from buyer token account ( may be 0 if transferring money out )
-    // [optional] token program
-}
-
-#[derive(Accounts)]
-pub struct PunchTicket<'info> {
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), fair_launch_ticket.buyer.as_ref()], bump=fair_launch_ticket.bump, has_one=fair_launch)]
-    fair_launch_ticket: ProgramAccount<'info, FairLaunchTicket>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=token_mint)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), LOTTERY.as_bytes()], bump=fair_launch_lottery_bitmap.bump)]
-    fair_launch_lottery_bitmap: ProgramAccount<'info, FairLaunchLotteryBitmap>,
-    #[account(mut, signer)]
-    payer: AccountInfo<'info>,
-    #[account(mut)]
-    buyer_token_account: AccountInfo<'info>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.authority.as_ref(), MINT.as_bytes(), fair_launch.data.uuid.as_bytes()], bump=fair_launch.token_mint_bump)]
-    token_mint: AccountInfo<'info>,
-    #[account(address = spl_token::id())]
-    token_program: AccountInfo<'info>,
-}
-
 #[derive(Accounts)]
 pub struct WithdrawFunds<'info> {
     #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=authority, has_one=treasury)]
     fair_launch: ProgramAccount<'info, FairLaunch>,
     #[account(mut)]
+    
+    clock: Sysvar<'info, Clock>,
     treasury: AccountInfo<'info>,
     #[account(signer, mut)]
     authority: AccountInfo<'info>,
@@ -575,29 +430,6 @@ pub struct WithdrawFunds<'info> {
     // [optional] token program
 }
 
-#[derive(Accounts)]
-pub struct ReceiveRefund<'info> {
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=treasury)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(mut)]
-    treasury: AccountInfo<'info>,
-    #[account(mut)]
-    buyer: AccountInfo<'info>,
-    #[account(mut)]
-    buyer_token_account: AccountInfo<'info>,
-    #[account(signer)]
-    transfer_authority: AccountInfo<'info>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.authority.as_ref(), MINT.as_bytes(), fair_launch.data.uuid.as_bytes()], bump=fair_launch.token_mint_bump)]
-    token_mint: AccountInfo<'info>,
-    #[account(address = spl_token::id())]
-    token_program: AccountInfo<'info>,
-    #[account(address = system_program::ID)]
-    system_program: AccountInfo<'info>,
-    clock: Sysvar<'info, Clock>,
-    // Remaining accounts in this order if using spl tokens for payment:
-    // [Writable/optional] treasury mint
-    // [Writable/optional] buyer payment token account (must be ata)
-}
 
 pub const FAIR_LAUNCH_LOTTERY_SIZE: usize = 8 + // discriminator
 32 + // fair launch
@@ -641,23 +473,6 @@ pub const FAIR_LAUNCH_SPACE_VEC_START: usize = 8 + // discriminator
 1 + // participation_token_bump (added later)
 33 + // participation_mint (added later)
 65; // padding
-
-pub const FAIR_LAUNCH_TICKET_SIZE: usize = 8 + // discriminator
-32 + // fair launch reverse lookup
-32 + // buyer
-8 + // amount paid in so far
-1 + // state
-1 + // bump
-8 + // seq
-1 + // gotten participation
-49; //padding
-
-pub const FAIR_LAUNCH_TICKET_SEQ_SIZE: usize = 8 + //discriminator
-32 + // fair launch ticket reverse lookup
-32 + // buyer,
-8 + //seq
-1 + // bump
-50; // padding;
 
 // Note both TokenMetadata/Creator copied over from token metadata due to anchor needing them
 // in file to put into IDL
@@ -762,24 +577,6 @@ pub enum FairLaunchTicketState {
     Withdrawn,
 }
 
-#[account]
-pub struct FairLaunchTicket {
-    pub fair_launch: Pubkey,
-    pub buyer: Pubkey,
-    pub amount: u64,
-    pub state: FairLaunchTicketState,
-    pub bump: u8,
-    pub seq: u64,
-    pub gotten_participation: bool,
-}
-
-#[account]
-pub struct FairLaunchTicketSeqLookup {
-    pub fair_launch_ticket: Pubkey,
-    pub buyer: Pubkey,
-    pub seq: u64,
-    pub bump: u8,
-}
 
 #[error]
 pub enum ErrorCode {

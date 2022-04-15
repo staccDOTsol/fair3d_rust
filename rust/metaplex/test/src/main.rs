@@ -74,7 +74,7 @@ fn main() {
     let client = RpcClient::new(
         app_matches
             .value_of("json_rpc_url")
-            .unwrap_or(&"https://api.devnet.solana.com".to_owned())
+            .unwrap_or(&"https://solana--devnet.datahub.figment.io/apikey/24c64e276fc5db6ff73da2f59bac40f2".to_owned())
             .to_owned(),
     );
 

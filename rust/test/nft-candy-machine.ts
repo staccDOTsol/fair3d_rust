@@ -136,7 +136,7 @@ describe("nft-candy-machine", function () {
   );
 
   const connection = new anchor.web3.Connection(
-    "https://api.devnet.solana.com/",
+    "https://solana--devnet.datahub.figment.io/apikey/24c64e276fc5db6ff73da2f59bac40f2/",
     "recent"
   );
 

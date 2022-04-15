@@ -1,5 +1,5 @@
 use {
-    crate::{ErrorCode, FairLaunch, FairLaunchData, MAX_GRANULARITY},
+    crate::{ErrorCode, FairLaunch, FairLaunchData},
     anchor_lang::{
         prelude::{
             msg, AccountInfo, ProgramAccount, ProgramError, ProgramResult, Pubkey, Rent,
@@ -81,124 +81,6 @@ pub fn spl_token_transfer(params: TokenTransferParams<'_, '_>) -> ProgramResult 
     result.map_err(|_| ErrorCode::TokenTransferFailed.into())
 }
 
-pub fn adjust_counts(
-    fair_launch: &mut ProgramAccount<FairLaunch>,
-    new_amount: u64,
-    old_amount: Option<u64>,
-) -> ProgramResult {
-    let price_range_offset = fair_launch
-        .data
-        .price_range_start
-        .checked_div(fair_launch.data.tick_size)
-        .ok_or(ErrorCode::NumericalOverflowError)?;
-
-    if let Some(old) = old_amount {
-        if old >= fair_launch.data.price_range_start {
-            let mut index = old
-                .checked_div(fair_launch.data.tick_size)
-                .ok_or(ErrorCode::NumericalOverflowError)?;
-            index = index
-                .checked_sub(price_range_offset)
-                .ok_or(ErrorCode::NumericalOverflowError)?;
-            let place = index as usize;
-            fair_launch.counts_at_each_tick[place] = fair_launch.counts_at_each_tick[place]
-                .checked_sub(1)
-                .ok_or(ErrorCode::NumericalOverflowError)?;
-        }
-    }
-
-    if new_amount >= fair_launch.data.price_range_start {
-        let mut index = new_amount
-            .checked_div(fair_launch.data.tick_size)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-        index = index
-            .checked_sub(price_range_offset)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-        let place = index as usize;
-        fair_launch.counts_at_each_tick[place] = fair_launch.counts_at_each_tick[place]
-            .checked_add(1)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-    }
-
-    let mut total_counts: u64 = 0;
-    let mut ticks: u64 = 0;
-    let mut first_val_seen = false;
-    let mut first_val = 0;
-    for n in &fair_launch.counts_at_each_tick {
-        total_counts = total_counts
-            .checked_add(*n)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-        if !first_val_seen && n > &0 {
-            first_val = ticks
-                .checked_add(fair_launch.data.price_range_start)
-                .ok_or(ErrorCode::NumericalOverflowError)?;
-            first_val_seen = true;
-        }
-        ticks = ticks
-            .checked_add(fair_launch.data.tick_size)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-    }
-
-    if total_counts == 1 {
-        // degen case
-        fair_launch.current_median = first_val;
-        fair_launch.current_eligible_holders = 1;
-        return Ok(());
-    }
-
-    let median_location = total_counts
-        .checked_div(2)
-        .ok_or(ErrorCode::NumericalOverflowError)?;
-
-    let mut counter: u64 = 0;
-    let mut ticks: u64 = 0;
-    let mut last_seen_tick_value_with_positive_counts: u64 = 0;
-    let mut current_eligible_holders: u64 = 0;
-    let mut done: bool = false;
-    for n in &fair_launch.counts_at_each_tick {
-        let is_possible_perfect_split = counter == median_location;
-        counter = counter
-            .checked_add(*n)
-            .ok_or(ErrorCode::NumericalOverflowError)?;
-
-        if counter > median_location {
-            if !done {
-                if let Some(val) = total_counts.checked_rem(2) {
-                    if val == 0 && is_possible_perfect_split {
-                        let half_way = ticks
-                            .checked_sub(last_seen_tick_value_with_positive_counts)
-                            .ok_or(ErrorCode::NumericalOverflowError)?;
-                        ticks = half_way
-                            .checked_div(2)
-                            .ok_or(ErrorCode::NumericalOverflowError)?;
-                        ticks = last_seen_tick_value_with_positive_counts
-                            .checked_add(ticks)
-                            .ok_or(ErrorCode::NumericalOverflowError)?;
-                    }
-                }
-                done = true;
-            }
-            current_eligible_holders += n;
-        }
-        if !done {
-            if n > &0 {
-                last_seen_tick_value_with_positive_counts = ticks;
-            }
-            ticks = ticks
-                .checked_add(fair_launch.data.tick_size)
-                .ok_or(ErrorCode::NumericalOverflowError)?;
-        }
-    }
-
-    fair_launch.current_median = ticks
-        .checked_add(fair_launch.data.price_range_start)
-        .ok_or(ErrorCode::NumericalOverflowError)?;
-
-    fair_launch.current_eligible_holders = current_eligible_holders;
-
-    Ok(())
-}
-
 pub fn get_mask_and_index_for_seq(seq: u64) -> Result<(u8, usize), ProgramError> {
     let my_position_in_index = seq
         .checked_div(8)
@@ -248,25 +130,6 @@ pub fn assert_data_valid(data: &FairLaunchData) -> ProgramResult {
         if anti_rug.token_requirement > data.number_of_tokens {
             return Err(ErrorCode::InvalidAntiRugTokenRequirement.into());
         }
-    }
-
-    let difference = data
-        .price_range_end
-        .checked_sub(data.price_range_start)
-        .ok_or(ErrorCode::NumericalOverflowError)?;
-    let possible_valid_user_prices = difference
-        .checked_div(data.tick_size)
-        .ok_or(ErrorCode::NumericalOverflowError)?;
-    let remainder = difference
-        .checked_rem(data.tick_size)
-        .ok_or(ErrorCode::NumericalOverflowError)?;
-
-    if remainder > 0 {
-        return Err(ErrorCode::CannotUseTickSizeThatGivesRemainder.into());
-    }
-
-    if possible_valid_user_prices > MAX_GRANULARITY {
-        return Err(ErrorCode::TooMuchGranularityInRange.into());
     }
 
     Ok(())
@@ -329,7 +192,13 @@ pub fn calculate_withdraw_amount(
         real_amount
     };
 
-    Ok(amount_to_withdraw)
+    Ok(amount_to_withdraw.checked_div(100)
+
+    .ok_or(ErrorCode::NumericalOverflowError)?
+    .checked_mul(75)
+
+    .ok_or(ErrorCode::NumericalOverflowError)?
+)
 }
 
 pub fn get_expected_capital_alotment_size(
@@ -352,19 +221,6 @@ pub fn get_expected_capital_alotment_size(
     Ok(divided as u64)
 }
 
-pub fn assert_valid_amount(fair_launch: &FairLaunch, amount: u64) -> ProgramResult {
-    if amount < fair_launch.data.price_range_start || amount > fair_launch.data.price_range_end {
-        return Err(ErrorCode::InvalidPurchaseAmount.into());
-    }
-
-    if let Some(val) = amount.checked_rem(fair_launch.data.tick_size) {
-        if val > 0 && amount != fair_launch.current_median {
-            return Err(ErrorCode::InvalidPurchaseAmount.into());
-        }
-    }
-
-    Ok(())
-}
 
 pub fn assert_derivation(
     program_id: &Pubkey,
