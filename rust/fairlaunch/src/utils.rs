@@ -34,17 +34,17 @@ pub fn assert_owned_by(account: &AccountInfo, owner: &Pubkey) -> ProgramResult {
 }
 ///TokenTransferParams
 pub struct TokenTransferParams<'a: 'b, 'b> {
-    /// source
+    /// CHECK: well the user is source, checked em on deposit
     pub source: AccountInfo<'a>,
-    /// destination
+    /// CHECK: annd the treasury is destination, we checked them on the deposit
     pub destination: AccountInfo<'a>,
     /// amount
     pub amount: u64,
-    /// authority
+    /// CHECK: checked it onnnnn deposit authoritys
     pub authority: AccountInfo<'a>,
     /// authority_signer_seeds
     pub authority_signer_seeds: &'b [&'b [u8]],
-    /// token_program
+    /// CHECK: checked it addy must match token_program
     pub token_program: AccountInfo<'a>,
 }
 
@@ -282,71 +282,4 @@ pub fn create_or_allocate_account_raw<'a>(
     msg!("Completed assignation!");
 
     Ok(())
-}
-
-pub fn spl_token_mint_to<'a: 'b, 'b>(
-    mint: AccountInfo<'a>,
-    destination: AccountInfo<'a>,
-    amount: u64,
-    authority: AccountInfo<'a>,
-    authority_signer_seeds: &'b [&'b [u8]],
-    token_program: AccountInfo<'a>,
-) -> ProgramResult {
-    let result = invoke_signed(
-        &spl_token::instruction::mint_to(
-            token_program.key,
-            mint.key,
-            destination.key,
-            authority.key,
-            &[],
-            amount,
-        )?,
-        &[mint, destination, authority, token_program],
-        &[authority_signer_seeds],
-    );
-    result.map_err(|_| ErrorCode::TokenMintToFailed.into())
-}
-
-/// TokenBurnParams
-pub struct TokenBurnParams<'a: 'b, 'b> {
-    /// mint
-    pub mint: AccountInfo<'a>,
-    /// source
-    pub source: AccountInfo<'a>,
-    /// amount
-    pub amount: u64,
-    /// authority
-    pub authority: AccountInfo<'a>,
-    /// authority_signer_seeds
-    pub authority_signer_seeds: Option<&'b [&'b [u8]]>,
-    /// token_program
-    pub token_program: AccountInfo<'a>,
-}
-
-pub fn spl_token_burn(params: TokenBurnParams<'_, '_>) -> ProgramResult {
-    let TokenBurnParams {
-        mint,
-        source,
-        authority,
-        token_program,
-        amount,
-        authority_signer_seeds,
-    } = params;
-    let mut seeds: Vec<&[&[u8]]> = vec![];
-    if let Some(seed) = authority_signer_seeds {
-        seeds.push(seed);
-    }
-    let result = invoke_signed(
-        &spl_token::instruction::burn(
-            token_program.key,
-            source.key,
-            mint.key,
-            authority.key,
-            &[],
-            amount,
-        )?,
-        &[source, mint, authority, token_program],
-        seeds.as_slice(),
-    );
-    result.map_err(|_| ErrorCode::TokenBurnFailed.into())
 }

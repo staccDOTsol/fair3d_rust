@@ -23,7 +23,7 @@ use {
         mint_new_edition_from_master_edition_via_token, update_metadata_accounts,
     },
     spl_token::{
-        instruction::{initialize_account2, mint_to},
+        instruction::{initialize_account, mint_to},
         state::Account,
     },
 };
@@ -101,7 +101,7 @@ pub mod fair_launch {
             )?;
 
             invoke_signed(
-                &initialize_account2(
+                &initialize_account(
                     &ctx.accounts.token_program.key,
                     treasury_info.key,
                     treasury_mint_info.key,

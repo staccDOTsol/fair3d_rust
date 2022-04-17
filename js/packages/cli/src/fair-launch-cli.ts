@@ -181,9 +181,7 @@ program
     const [fairLaunch, fairLaunchBump] = await getFairLaunch(tokenMint);
     const [treasury, treasuryBump] = await getTreasury(tokenMint);
 
-    const remainingAccounts = !treasuryMint
-      ? []
-      : [
+    const remainingAccounts =  [
           {
             pubkey: new anchor.web3.PublicKey(treasuryMint),
             isWritable: false,

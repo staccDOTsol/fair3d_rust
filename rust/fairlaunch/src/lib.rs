@@ -12,6 +12,8 @@ use {
         solana_program::{
             program::{invoke, invoke_signed},
             program_pack::Pack,
+            program_option::COption,
+
             system_instruction, system_program,
         },
         AnchorDeserialize, AnchorSerialize,
@@ -160,13 +162,74 @@ pub mod fair_launch {
         
         let charged_amount = amount;
 
+        if let Some(treasury_mint) = fair_launch.treasury_mint {
+            let treasury_mint_info = &ctx.remaining_accounts[0];
+            let _treasury_mint: spl_token::state::Mint = assert_initialized(&treasury_mint_info)?;
+
+            let buyer_token_account_info = &ctx.remaining_accounts[1];
+            let buyer_token_account: Account = assert_initialized(&buyer_token_account_info)?;
+
+            let transfer_authority_info = &ctx.remaining_accounts[2];
+
+            let token_program = &ctx.remaining_accounts[3];
+
+            if token_program.key != &spl_token::id() {
+                return Err(ErrorCode::InvalidTokenProgram.into());
+            }
+
+            if *treasury_mint_info.key != treasury_mint {
+                return Err(ErrorCode::TreasuryMintMismatch.into());
+            }
+
+            if buyer_token_account.mint != *treasury_mint_info.key {
+                return Err(ErrorCode::TreasuryMintMismatch.into());
+            }
+
+            if let COption::Some(val) = buyer_token_account.delegate {
+                if val != *transfer_authority_info.key {
+                    return Err(ErrorCode::AccountShouldHaveNoDelegates.into());
+                }
+            }
+
+            if buyer_token_account.owner != *buyer.key {
+                return Err(ErrorCode::AccountOwnerShouldBeBuyer.into());
+            }
+
+            assert_owned_by(treasury_mint_info, &token_program.key)?;
+            assert_owned_by(buyer_token_account_info, &token_program.key)?;
+
+            // assert is an ATA
+            assert_derivation(
+                &spl_associated_token_account::id(),
+                buyer_token_account_info,
+                &[
+                    buyer.key.as_ref(),
+                    token_program.key.as_ref(),
+                    &treasury_mint_info.key.as_ref(),
+                ],
+            )?;
+
+            if buyer_token_account.amount < charged_amount {
+                return Err(ErrorCode::NotEnoughTokens.into());
+            }
+
+            if charged_amount < fair_launch.data.last {
+                return Err(ErrorCode::NotEnoughSOL.into());
+            }
+            msg!("b4 {}", buyer_token_account_info.key);
+            spl_token_transfer(TokenTransferParams {
+                source: buyer_token_account_info.clone(),
+                destination: ctx.accounts.treasury.clone(),
+                authority: transfer_authority_info.clone(),
+                authority_signer_seeds: &[],
+                token_program: token_program.clone(),
+                amount: charged_amount,
+            })?;
+            msg!("aft");
+        } else {
             if buyer.lamports() < charged_amount {
                 return Err(ErrorCode::NotEnoughSOL.into());
             }
-            if charged_amount <= fair_launch.data.last {
-                return Err(ErrorCode::NotEnoughSOL.into());
-            }
-            fair_launch.data.last = charged_amount;
             invoke(
                 &system_instruction::transfer(buyer.key, ctx.accounts.treasury.key, charged_amount),
                 &[
@@ -175,8 +238,9 @@ pub mod fair_launch {
                     ctx.accounts.system_program.clone(),
                 ],
             )?;
-        
+        }
 
+        fair_launch.data.last = charged_amount;
         if fair_launch.data.phase_one_end.checked_sub(clock.unix_timestamp).ok_or(ErrorCode::NumericalOverflowError)? < fair_launch.data.lottery_duration{
             fair_launch.data.phase_one_end = clock.unix_timestamp.checked_add(fair_launch.data.lottery_duration).ok_or(ErrorCode::NumericalOverflowError)?;
         }
@@ -307,102 +371,54 @@ pub mod fair_launch {
 #[derive(Accounts)]
 #[instruction(bump: u8, treasury_bump: u8, token_mint_bump: u8, data: FairLaunchData)]
 pub struct InitializeFairLaunch<'info> {
-    #[account(init, seeds=[PREFIX.as_bytes(), token_mint.key.as_ref()], payer=payer, bump=bump, space=FAIR_LAUNCH_SPACE_VEC_START+8u64.checked_mul((data.price_range_end - data.price_range_start).checked_div(data.tick_size).ok_or(ErrorCode::NumericalOverflowError)?.checked_add(2).ok_or(ErrorCode::NumericalOverflowError)?).ok_or(ErrorCode::NumericalOverflowError)? as usize)]
+    #[account(init, seeds=[PREFIX.as_bytes(), token_mint.key.as_ref()], payer=payer, bump, space=FAIR_LAUNCH_SPACE_VEC_START+8u64.checked_mul((data.price_range_end - data.price_range_start).checked_div(data.tick_size).ok_or(ErrorCode::NumericalOverflowError)?.checked_add(2).ok_or(ErrorCode::NumericalOverflowError)?).ok_or(ErrorCode::NumericalOverflowError)? as usize)]
     fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(init, seeds=[PREFIX.as_bytes(), authority.key.as_ref(), MINT.as_bytes(), data.uuid.as_bytes()], mint::authority=fair_launch, mint::decimals=0, payer=payer, bump=token_mint_bump)]
+    #[account(init, seeds=[PREFIX.as_bytes(), authority.key.as_ref(), MINT.as_bytes(), data.uuid.as_bytes()], mint::authority=fair_launch, mint::decimals=0, payer=payer, bump)]
     token_mint: CpiAccount<'info, Mint>,
-    #[account(mut)]
+    #[account(mut, seeds=[PREFIX.as_bytes(), token_mint.key().as_ref(), TREASURY.as_bytes()],  bump)]
+    /// CHECK: I mean ideally we should init this thing here rather tahn take one in?
     treasury: AccountInfo<'info>,
-    #[account(constraint= authority.data_is_empty() && authority.lamports() > 0)]
+    #[account(signer, constraint= authority.data_is_empty() && authority.lamports() > 0)]
+    /// CHECK: Idk how to use ": Signer" apparently
     authority: AccountInfo<'info>,
     #[account(mut, signer)]
+    /// CHECK: Idk how to use ": Signer" apparently
     payer: AccountInfo<'info>,
     #[account(address = spl_token::id())]
+    /// CHECK: addy must match
     token_program: AccountInfo<'info>,
     #[account(address = system_program::ID)]
+    /// CHECK: addy must match
     system_program: AccountInfo<'info>,
     rent: Sysvar<'info, Rent>,
     // Remaining accounts in this order if using spl tokens for payment:
     // [optional] treasury mint
 }
 
-/// Can only update fair launch before phase 1 start.
-#[derive(Accounts)]
-pub struct UpdateFairLaunch<'info> {
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=authority)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(signer)]
-    authority: AccountInfo<'info>,
-    clock: Sysvar<'info, Clock>,
-}
-
-/// Limited Update that only sets phase 3 dates once bitmap is in place and fully setup.
-#[derive(Accounts)]
-pub struct StartPhaseThree<'info> {
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=authority, has_one=token_mint)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), LOTTERY.as_bytes()], constraint=fair_launch_lottery_bitmap.to_account_info().data_len() > 0, bump=fair_launch_lottery_bitmap.bump, has_one=fair_launch)]
-    fair_launch_lottery_bitmap: ProgramAccount<'info, FairLaunchLotteryBitmap>,
-    #[account(signer)]
-    authority: AccountInfo<'info>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.authority.as_ref(), MINT.as_bytes(), fair_launch.data.uuid.as_bytes()], bump=fair_launch.token_mint_bump)]
-    token_mint: CpiAccount<'info, Mint>,
-}
-
-/// Restarts phase two with as much time as the lottery duration had if duration is passed
-#[derive(Accounts)]
-pub struct RestartPhaseTwo<'info> {
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    clock: Sysvar<'info, Clock>,
-}
-
-/// Can only create the fair launch lottery bitmap after phase 1 has ended.
-#[derive(Accounts)]
-#[instruction(bump: u8)]
-pub struct CreateFairLaunchLotteryBitmap<'info> {
-    #[account(seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=authority)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(init, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), LOTTERY.as_bytes()],  payer=payer, bump=bump, space= FAIR_LAUNCH_LOTTERY_SIZE + (fair_launch.number_tickets_sold.checked_div(8).ok_or(ErrorCode::NumericalOverflowError)? as usize) + 1)]
-    fair_launch_lottery_bitmap: ProgramAccount<'info, FairLaunchLotteryBitmap>,
-    #[account(signer)]
-    authority: AccountInfo<'info>,
-    #[account(mut, signer)]
-    payer: AccountInfo<'info>,
-    #[account(address = system_program::ID)]
-    system_program: AccountInfo<'info>,
-    rent: Sysvar<'info, Rent>,
-    clock: Sysvar<'info, Clock>,
-}
-
-/// Can only set the fair launch lottery bitmap after phase 2 has ended.
-#[derive(Accounts)]
-pub struct UpdateFairLaunchLotteryBitmap<'info> {
-    #[account(seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=authority)]
-    fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref(), LOTTERY.as_bytes()], bump=fair_launch_lottery_bitmap.bump)]
-    fair_launch_lottery_bitmap: ProgramAccount<'info, FairLaunchLotteryBitmap>,
-    #[account(signer)]
-    authority: AccountInfo<'info>,
-}
-
-/// Can only purchase a ticket in phase 1.
+///  - kek search n replace kek - Can only purchase a ticket in phase 1.
 #[derive(Accounts)]
 #[instruction(bump: u8, amount: u64)]
 pub struct PurchaseTicket<'info> {
 
     #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.token_mint.as_ref()], bump=fair_launch.bump, has_one=treasury)]
     fair_launch: ProgramAccount<'info, FairLaunch>,
-    #[account(mut)]
+    #[account(mut, address=fair_launch.treasury)]
+    /// CHECK: I mean ideally we should init this thing here rather tahn take one in?
     treasury: AccountInfo<'info>,
     #[account(mut, signer, constraint= buyer.data_is_empty() && buyer.lamports() > 0)]
+    /// CHECK: signer
     buyer: AccountInfo<'info>,
     #[account(mut, signer)]
+    /// CHECK: signer
     payer: AccountInfo<'info>,
     #[account(address = system_program::ID)]
+    /// CHECK: addy must match
     system_program: AccountInfo<'info>,
     rent: Sysvar<'info, Rent>,
     clock: Sysvar<'info, Clock>,
+
+    #[account(mut, address=fair_launch.token_mint)]
+    token_mint: CpiAccount<'info, Mint>,
     // Remaining accounts in this order if using spl tokens for payment:
     // [Writable/optional] treasury mint
     // [Writable/optional] buyer token account (must be ata)
@@ -417,12 +433,18 @@ pub struct WithdrawFunds<'info> {
     #[account(mut)]
     
     clock: Sysvar<'info, Clock>,
+        #[account(mut, seeds=[PREFIX.as_bytes(), token_mint.key().as_ref(), TREASURY.as_bytes()], bump=fair_launch.treasury_bump)]
+    /// CHECK: I mean ideally we should init this thing here rather tahn take one in?
     treasury: AccountInfo<'info>,
     #[account(signer, mut)]
+    /// CHECK: signer
     authority: AccountInfo<'info>,
-    #[account(mut, seeds=[PREFIX.as_bytes(), fair_launch.authority.as_ref(), MINT.as_bytes(), fair_launch.data.uuid.as_bytes()], bump=fair_launch.token_mint_bump)]
+    #[account(mut, seeds=[PREFIX.as_bytes(), authority.key.as_ref(), MINT.as_bytes(), fair_launch.data.uuid.as_bytes()],  bump=fair_launch.token_mint_bump)]
+    /// CHECK: seeds
     token_mint: AccountInfo<'info>,
     #[account(address = system_program::ID)]
+
+    /// CHECK: addy must match
     system_program: AccountInfo<'info>,
     // Remaining accounts in this order if using spl tokens for payment:
     // [Writable/optional] treasury mint

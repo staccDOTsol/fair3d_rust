@@ -1,6 +1,7 @@
 [workspace]
+url =  "https://ssc-dao.genesysgo.net/"
 members = [
-  "fair-launch",
+  "fairlaunch",
 ]
 exclude = [
 ]
